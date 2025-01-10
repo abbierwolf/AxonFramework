@@ -21,6 +21,7 @@ import org.axonframework.eventhandling.EventBus;
 import org.axonframework.eventhandling.EventMessage;
 import org.axonframework.eventhandling.GenericEventMessage;
 import org.axonframework.eventhandling.Timestamp;
+import org.axonframework.eventhandling.TrackingToken;
 import org.axonframework.eventhandling.scheduling.EventScheduler;
 import org.axonframework.eventhandling.scheduling.ScheduleToken;
 import org.axonframework.messaging.annotation.MetaDataValue;
@@ -64,8 +65,10 @@ public class StubSaga {
     @StartSaga
     @SagaEventHandler(associationProperty = "identifier")
     public void handleSagaStart(TriggerSagaStartEvent event,
+                                TrackingToken trackingToken,
                                 EventMessage<TriggerSagaStartEvent> message,
                                 @MetaDataValue("extraIdentifier") Object extraIdentifier) {
+        assertNotNull(trackingToken);
         handledEvents.add(event);
 
         if (extraIdentifier != null) {
@@ -125,6 +128,11 @@ public class StubSaga {
         scheduler.cancelSchedule(timer);
         timer = scheduler.schedule(Duration.ofMinutes(TRIGGER_DURATION_MINUTES),
                                    new GenericEventMessage<>(new TimerTriggeredEvent(event.getIdentifier())));
+    }
+
+    @SagaEventHandler(associationProperty = "identifier", associationResolver = AssociationResolverStub.class)
+    public void handleTriggerAssociationResolverSagaEvent(TriggerAssociationResolverSagaEvent event) {
+        handledEvents.add(event);
     }
 
     public EventScheduler getScheduler() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import io.axoniq.axonserver.connector.ReplyChannel;
 import io.axoniq.axonserver.grpc.ErrorMessage;
 import io.axoniq.axonserver.grpc.query.QueryRequest;
 import io.axoniq.axonserver.grpc.query.QueryResponse;
-import io.netty.util.internal.OutOfDirectMemoryError;
+import io.grpc.netty.shaded.io.netty.util.internal.OutOfDirectMemoryError;
 import org.axonframework.axonserver.connector.ErrorCode;
 import org.axonframework.axonserver.connector.util.ExceptionSerializer;
 import org.axonframework.axonserver.connector.util.ProcessingInstructionHelper;
@@ -32,7 +32,6 @@ import org.axonframework.queryhandling.QueryBusSpanFactory;
 import org.axonframework.queryhandling.QueryMessage;
 import org.axonframework.queryhandling.QueryResponseMessage;
 import org.axonframework.queryhandling.StreamingQueryMessage;
-import org.axonframework.tracing.SpanFactory;
 import org.axonframework.util.ClasspathResolver;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -183,6 +182,17 @@ class QueryProcessingTask implements Runnable, FlowControl {
         } else {
             cancelledBeforeInit.set(true);
         }
+    }
+
+    /**
+     * Returns {@code true} if this task is still waiting for a result, and {@code false} otherwise.
+     * <p>
+     * Note that this would this return {@code true}, even if the streamable result has not been canceled yet!
+     *
+     * @return {@code true} if this task is still waiting for a result, and {@code false} otherwise.
+     */
+    public boolean resultPending() {
+        return streamableResultRef.get() == null;
     }
 
     private <Q, R> void streamingQuery(QueryMessage<Q, R> originalQueryMessage) {

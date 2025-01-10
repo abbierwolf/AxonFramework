@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,12 @@ import org.jobrunr.scheduling.JobScheduler;
 import org.jobrunr.server.BackgroundJobServer;
 import org.jobrunr.storage.InMemoryStorageProvider;
 import org.jobrunr.storage.StorageProvider;
-import org.junit.*;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.*;
 import org.mockito.*;
 import org.mockito.junit.jupiter.*;
 
+import java.time.Duration;
 import java.util.Objects;
 
 import static org.jobrunr.server.BackgroundJobServerConfiguration.usingStandardBackgroundJobServerConfiguration;
@@ -70,7 +69,9 @@ class JobrunrDeadlineManagerTest extends AbstractDeadlineManagerTestSuite {
         JobRunr.configure()
                .useJobActivator(new SimpleActivator(spy(manager)))
                .useStorageProvider(storageProvider)
-               .useBackgroundJobServer(usingStandardBackgroundJobServerConfiguration().andPollIntervalInSeconds(5))
+               .useBackgroundJobServer(
+                       usingStandardBackgroundJobServerConfiguration().andPollInterval(Duration.ofMillis(200))
+               )
                .initialize();
         backgroundJobServer = JobRunr.getBackgroundJobServer();
         return manager;
@@ -91,23 +92,27 @@ class JobrunrDeadlineManagerTest extends AbstractDeadlineManagerTestSuite {
         verify(scheduler).shutdown();
     }
 
+    @Override
     @Test
-    @Ignore("Cancel all within scope is not implemented for the non pro version.")
-    void deadlineCancellationWithinScopeOnAggregate() {
+    @Disabled("Cancel all within scope is not implemented for the non pro version.")
+    public void deadlineCancellationWithinScopeOnAggregate() {
     }
 
+    @Override
     @Test
-    @Ignore("Cancel all is not implemented for the non pro version.")
-    void deadlineCancelAllOnAggregateIsTracedCorrectly() {
+    @Disabled("Cancel all is not implemented for the non pro version.")
+    public void deadlineCancelAllOnAggregateIsTracedCorrectly() {
     }
 
+    @Override
     @Test
-    @Ignore("Cancel all within scope is not implemented for the non pro version.")
-    void deadlineCancellationWithinScopeOnSaga() {
+    @Disabled("Cancel all within scope is not implemented for the non pro version.")
+    public void deadlineCancellationWithinScopeOnSaga() {
     }
 
+    @Override
     @Test
-    @Ignore("Cancel all is not implemented for the non pro version.")
-    void deadlineCancelAllOnSagaIsCorrectlyTraced() {
+    @Disabled("Cancel all is not implemented for the non pro version.")
+    public void deadlineCancelAllOnSagaIsCorrectlyTraced() {
     }
 }

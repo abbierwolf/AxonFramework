@@ -23,12 +23,15 @@ import org.axonframework.common.ReflectionUtils;
 import org.axonframework.deadline.DeadlineMessage;
 import org.axonframework.eventhandling.EventBus;
 import org.axonframework.eventhandling.EventMessage;
+import org.axonframework.eventhandling.EventUtils;
 import org.axonframework.eventhandling.GenericDomainEventMessage;
 import org.axonframework.eventhandling.GenericEventMessage;
+import org.axonframework.eventhandling.GlobalSequenceTrackingToken;
 import org.axonframework.eventhandling.ListenerInvocationErrorHandler;
 import org.axonframework.eventhandling.LoggingErrorHandler;
 import org.axonframework.eventhandling.Segment;
 import org.axonframework.eventhandling.SimpleEventBus;
+import org.axonframework.eventhandling.TrackedEventMessage;
 import org.axonframework.messaging.DefaultInterceptorChain;
 import org.axonframework.messaging.MessageDispatchInterceptor;
 import org.axonframework.messaging.MessageHandler;
@@ -73,6 +76,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.StreamSupport;
 
 import static java.lang.String.format;
@@ -109,6 +113,7 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
 
     private boolean transienceCheckEnabled = true;
     private boolean resourcesInitialized = false;
+    private final AtomicLong globalSequence = new AtomicLong();
 
     /**
      * Creates an instance of the AnnotatedSagaTestFixture to test sagas of the given {@code sagaType}.
@@ -136,7 +141,14 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
         registeredResources.add(DefaultCommandGateway.builder().commandBus(commandBus).build());
 
         fixtureExecutionResult = new FixtureExecutionResultImpl<>(
-                sagaStore, eventScheduler, deadlineManager, eventBus, commandBus, sagaType, fieldFilters, recordingListenerInvocationErrorHandler);
+                sagaStore,
+                eventScheduler,
+                deadlineManager,
+                eventBus,
+                commandBus,
+                sagaType,
+                fieldFilters,
+                recordingListenerInvocationErrorHandler);
     }
 
     /**
@@ -147,7 +159,8 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
      */
     protected void handleInSaga(EventMessage<?> event) {
         ensureSagaResourcesInitialized();
-        DefaultUnitOfWork<? extends EventMessage<?>> unitOfWork = DefaultUnitOfWork.startAndGet(event);
+        TrackedEventMessage<?> trackedEventMessage = asTrackedEventMessage(event);
+        DefaultUnitOfWork<? extends EventMessage<?>> unitOfWork = DefaultUnitOfWork.startAndGet(trackedEventMessage);
         ResultMessage<?> resultMessage = unitOfWork.executeWithResult(() -> new DefaultInterceptorChain<>(
                 unitOfWork,
                 eventHandlerInterceptors,
@@ -164,6 +177,11 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
             }
             throw new FixtureExecutionException("Exception occurred while handling an event", e);
         }
+    }
+
+    private TrackedEventMessage<?> asTrackedEventMessage(EventMessage<?> event) {
+        return EventUtils.asTrackedEventMessage(
+                event, new GlobalSequenceTrackingToken(globalSequence.getAndIncrement()));
     }
 
     /**
@@ -185,19 +203,20 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
     protected void ensureSagaResourcesInitialized() {
         if (!resourcesInitialized) {
             SagaRepository<T> sagaRepository = AnnotatedSagaRepository.<T>builder()
-                    .sagaType(sagaType)
-                    .parameterResolverFactory(getParameterResolverFactory())
-                    .handlerDefinition(getHandlerDefinition())
-                    .sagaStore(sagaStore)
-                    .resourceInjector(getResourceInjector())
-                    .build();
+                                                                      .sagaType(sagaType)
+                                                                      .parameterResolverFactory(
+                                                                              getParameterResolverFactory())
+                                                                      .handlerDefinition(getHandlerDefinition())
+                                                                      .sagaStore(sagaStore)
+                                                                      .resourceInjector(getResourceInjector())
+                                                                      .build();
             sagaManager = AnnotatedSagaManager.<T>builder()
-                    .sagaRepository(sagaRepository)
-                    .sagaType(sagaType)
-                    .parameterResolverFactory(getParameterResolverFactory())
-                    .handlerDefinition(getHandlerDefinition())
-                    .listenerInvocationErrorHandler(recordingListenerInvocationErrorHandler)
-                    .build();
+                                              .sagaRepository(sagaRepository)
+                                              .sagaType(sagaType)
+                                              .parameterResolverFactory(getParameterResolverFactory())
+                                              .handlerDefinition(getHandlerDefinition())
+                                              .listenerInvocationErrorHandler(recordingListenerInvocationErrorHandler)
+                                              .build();
             resourcesInitialized = true;
         }
     }
@@ -277,6 +296,13 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
     @Override
     public ContinuedGivenState givenAPublished(Object event) {
         handleInSaga(timeCorrectedEventMessage(event));
+        return this;
+    }
+
+    @Override
+    public ContinuedGivenState givenAPublished(Object event, Map<String, ?> metaData) {
+        EventMessage<?> msg = GenericEventMessage.asEventMessage(event).andMetaData(metaData);
+        handleInSaga(timeCorrectedEventMessage(msg));
         return this;
     }
 
@@ -647,10 +673,10 @@ public class SagaTestFixture<T> implements FixtureConfiguration, ContinuedGivenS
     /**
      * Wrapping {@link ResourceInjector} instance. Will first call the {@link TransienceValidatingResourceInjector}, to
      * ensure the fixture's approach of injecting the default classes (like the {@link EventBus} and {@link CommandBus}
-     * for example) is maintained. Afterward, the custom {@code ResourceInjector} provided through the {@link
-     * #registerResourceInjector(ResourceInjector)} is called. This will (depending on the implementation) inject more
-     * resources, as well as potentially override resources already injected by the {@code
-     * TransienceValidatingResourceInjector}.
+     * for example) is maintained. Afterward, the custom {@code ResourceInjector} provided through the
+     * {@link #registerResourceInjector(ResourceInjector)} is called. This will (depending on the implementation) inject
+     * more resources, as well as potentially override resources already injected by the
+     * {@code TransienceValidatingResourceInjector}.
      */
     private static class WrappingResourceInjector implements ResourceInjector {
 

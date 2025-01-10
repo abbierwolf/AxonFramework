@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,8 +71,7 @@ public class ServerConnectorConfigurerModule implements ConfigurerModule {
         configurer.configureQueryBus(this::buildQueryBus);
         configurer.registerModule(new EventProcessorInfoConfiguration());
         configurer.registerComponent(TokenStore.class, c -> {
-            logger.warn("BEWARE! Falling back to an in-memory token store. It is highly recommended to configure a " +
-                                "persistent implementation, based on the activity of the handler.");
+            logger.warn("BEWARE! Falling back to an in-memory token store. It is highly recommended to configure a persistent implementation, based on the activity of the handler.");
             return new InMemoryTokenStore();
         });
         configurer.registerComponent(TargetContextResolver.class, configuration -> TargetContextResolver.noOp());
@@ -80,8 +79,10 @@ public class ServerConnectorConfigurerModule implements ConfigurerModule {
     }
 
     private AxonServerConnectionManager buildAxonServerConnectionManager(Configuration c) {
+        AxonServerConfiguration axonServerConfiguration = c.getComponent(AxonServerConfiguration.class);
         return AxonServerConnectionManager.builder()
-                                          .axonServerConfiguration(c.getComponent(AxonServerConfiguration.class))
+                                          .routingServers(axonServerConfiguration.getServers())
+                                          .axonServerConfiguration(axonServerConfiguration)
                                           .tagsConfiguration(
                                                   c.getComponent(TagsConfiguration.class, TagsConfiguration::new)
                                           )

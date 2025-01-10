@@ -1,9 +1,36 @@
+<p align="center">
+  <a href="https://www.axoniq.io/products/axon-framework">
+    <img src="https://www.axoniq.io/hubfs/axon-framework.svg" alt="Axon Framework logo" width="200" height="200">
+  </a>
+</p>
+
+<h1 align="center">Axon Framework</h1>
+
+<p align="center">
+  Build modern event-driven systems with AxonIQ technology.
+  <br>
+  <a href="https://www.axoniq.io/products/axon-framework"><strong>Product Description »</strong></a>
+  <br>
+  <br>
+  <a href="https://github.com/AxonIQ/code-samples">Code Samples Repo</a>
+  ·
+  <a href="https://developer.axoniq.io/axon-framework/overview">Technical Overview</a>
+  ·
+  <a href="https://github.com/AxonFramework/AxonFramework/issues">Feature / Bug Request</a>
+
+</p>
+
+
+
+
 # Axon Framework
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.axonframework/axon/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.axonframework/axon)
 ![Build Status](https://github.com/AxonFramework/AxonFramework/workflows/Axon%20Framework/badge.svg?branch=master)
 [![SonarCloud Status](https://sonarcloud.io/api/project_badges/measure?project=AxonFramework_AxonFramework&metric=alert_status)](https://sonarcloud.io/dashboard?id=AxonFramework_AxonFramework)
 
-[Axon Framework](https://developer.axoniq.io/axon-framework/overview) is a framework for building evolutionary, event-driven microservice systems based on the principles of Domain-Driven Design (DDD), Command-Query Responsibility Separation (CQRS), and Event Sourcing.
+Axon Framework is a framework for building evolutionary, event-driven microservice systems based on the principles of Domain-Driven Design (DDD), Command-Query Responsibility Separation (CQRS), and Event Sourcing.
+
+<img src="https://library.axoniq.io/axoniq-console-getting-started/main/ac-monitor-axon-framework-applications/_images/ac-message-dependency-diagram.png" alt="Bootstrap logo">
 
 Axon Framework provides you with the necessary building blocks to follow these principles.
 Examples of building blocks are aggregate design handles, aggregate repositories, command buses, saga design handles, event stores, query buses, and more.
@@ -37,6 +64,7 @@ Furthermore, below are several other helpful resources:
 * If the guide doesn't help, our [forum](https://discuss.axoniq.io/) provides a place to ask questions you have during development.
 * The [hotel demo](https://github.com/AxonIQ/hotel-demo) shows a fleshed-out example of using Axon Framework.
 * The [code samples repository](https://github.com/AxonIQ/code-samples) contains more in-depth samples you can benefit from.
+* You can [Ask Axon Guru](https://gurubase.io/g/axon-framework), it is an Axon-focused AI to answer your questions.
 
 ## Receiving help
 

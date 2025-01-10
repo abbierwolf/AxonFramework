@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,10 @@ package org.axonframework.queryhandling;
 
 import reactor.core.publisher.Sinks;
 
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
+
 /**
  * Wrapper around {@link Sinks.Many}. Since project-reactor is not a required dependency in this Axon version, we need
  * wrappers for backwards compatibility. As soon as dependency is no longer optional, this wrapper should be removed.
@@ -29,6 +33,7 @@ import reactor.core.publisher.Sinks;
 class SinksManyWrapper<T> implements SinkWrapper<T> {
 
     private final Sinks.Many<T> fluxSink;
+    private final ReentrantLock lock;
 
     /**
      * Initializes this wrapper with delegate sink.
@@ -37,6 +42,7 @@ class SinksManyWrapper<T> implements SinkWrapper<T> {
      */
     SinksManyWrapper(Sinks.Many<T> fluxSink) {
         this.fluxSink = fluxSink;
+        this.lock = new ReentrantLock();
     }
 
     /**
@@ -44,12 +50,7 @@ class SinksManyWrapper<T> implements SinkWrapper<T> {
      */
     @Override
     public void complete() {
-        Sinks.EmitResult result;
-        //noinspection StatementWithEmptyBody
-        while ((result = fluxSink.tryEmitComplete()) == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
-            // busy spin
-        }
-        result.orThrow();
+        performWithBusyWaitSpin(fluxSink::tryEmitComplete).orThrow();
     }
 
     /**
@@ -59,12 +60,7 @@ class SinksManyWrapper<T> implements SinkWrapper<T> {
      */
     @Override
     public void next(T value) {
-        Sinks.EmitResult result;
-        //noinspection StatementWithEmptyBody
-        while ((result = fluxSink.tryEmitNext(value)) == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
-            // busy spin
-        }
-        result.orThrow();
+        performWithBusyWaitSpin(() -> fluxSink.tryEmitNext(value)).orThrow();
     }
 
     /**
@@ -74,12 +70,32 @@ class SinksManyWrapper<T> implements SinkWrapper<T> {
      */
     @Override
     public void error(Throwable t) {
-        Sinks.EmitResult result;
-        //noinspection StatementWithEmptyBody
-        while ((result = fluxSink.tryEmitError(t)) == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
-            // busy spin
-        }
-        result.orThrow();
+        performWithBusyWaitSpin(() -> fluxSink.tryEmitError(t)).orThrow();
+    }
 
+    private Sinks.EmitResult performWithBusyWaitSpin(Supplier<Sinks.EmitResult> action) {
+        int i = 0;
+        Sinks.EmitResult result;
+        try {
+            // The lock's in place to have a safe and efficient way to pause a thread before jumping in the while-loop.
+            lock.lock();
+            while ((result = action.get()) == Sinks.EmitResult.FAIL_NON_SERIALIZED) {
+                // For 100 iterations, just busy-spin. Will resolve most conditions.
+                if (i < 100) {
+                    i++;
+                    // Busy spin...
+                } else if (i < 200) {
+                    // For the next 100 iterations, yield, to force other threads to have a chance.
+                    i++;
+                    Thread.yield();
+                } else {
+                    // Then after, park the thread to force other threads to perform their work.
+                    LockSupport.parkNanos(100);
+                }
+            }
+        } finally {
+            lock.unlock();
+        }
+        return result;
     }
 }

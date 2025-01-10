@@ -43,6 +43,7 @@ import org.axonframework.springboot.util.DeadLetterQueueProviderConfigurerModule
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -59,7 +60,8 @@ import javax.sql.DataSource;
 @AutoConfiguration
 @ConditionalOnBean(DataSource.class)
 @EnableConfigurationProperties(TokenStoreProperties.class)
-@AutoConfigureAfter(value = {JpaAutoConfiguration.class, JpaEventStoreAutoConfiguration.class})
+@AutoConfigureAfter({JpaAutoConfiguration.class, JpaEventStoreAutoConfiguration.class})
+@AutoConfigureBefore(AxonAutoConfiguration.class)
 public class JdbcAutoConfiguration {
 
     private final TokenStoreProperties tokenStoreProperties;
@@ -69,13 +71,13 @@ public class JdbcAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean({EventStorageEngine.class, EventSchema.class})
+    @ConditionalOnMissingBean({EventStorageEngine.class, EventSchema.class, EventStore.class})
     public EventSchema eventSchema() {
         return new EventSchema();
     }
 
     @Bean
-    @ConditionalOnMissingBean({EventStorageEngine.class, EventBus.class})
+    @ConditionalOnMissingBean({EventStorageEngine.class, EventBus.class, EventStore.class})
     public EventStorageEngine eventStorageEngine(Serializer defaultSerializer,
                                                  PersistenceExceptionResolver persistenceExceptionResolver,
                                                  @Qualifier("eventSerializer") Serializer eventSerializer,

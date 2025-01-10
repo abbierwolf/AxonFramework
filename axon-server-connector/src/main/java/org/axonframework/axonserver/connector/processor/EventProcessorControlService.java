@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.axonframework.config.EventProcessingConfiguration;
 import org.axonframework.eventhandling.EventProcessor;
 import org.axonframework.eventhandling.StreamingEventProcessor;
 import org.axonframework.eventhandling.SubscribingEventProcessor;
+import org.axonframework.eventhandling.tokenstore.TokenStore;
 import org.axonframework.lifecycle.Lifecycle;
 import org.axonframework.lifecycle.Phase;
 import org.slf4j.Logger;
@@ -173,9 +174,7 @@ public class EventProcessorControlService implements Lifecycle {
                                .stream()
                                .filter(entry -> {
                                    if (!processorNames.contains(entry.getKey())) {
-                                       logger.info("Event Processor [{}] is not a registered. "
-                                                           + "Please check the name or register the Event Processor",
-                                                   entry.getKey());
+                                       logger.info("Event Processor [{}] is not a registered. Please check the name or register the Event Processor", entry.getKey());
                                        return false;
                                    }
                                    return true;
@@ -185,8 +184,7 @@ public class EventProcessorControlService implements Lifecycle {
         strategiesPerProcessor.forEach((processorName, strategy) -> {
             Optional<String> optionalIdentifier = tokenStoreIdentifierFor(processorName);
             if (!optionalIdentifier.isPresent()) {
-                logger.warn("Cannot find token store identifier for processor [{}]. "
-                                    + "Load balancing cannot be configured without this identifier.", processorName);
+                logger.warn("Cannot find token store identifier for processor [{}]. Load balancing cannot be configured without this identifier.", processorName);
                 return;
             }
             String tokenStoreIdentifier = optionalIdentifier.get();
@@ -219,8 +217,9 @@ public class EventProcessorControlService implements Lifecycle {
     }
 
     private Optional<String> tokenStoreIdentifierFor(String processorName) {
-        return eventProcessingConfiguration.tokenStore(processorName)
-                                           .retrieveStorageIdentifier();
+        TokenStore tokenStore = eventProcessingConfiguration.tokenStore(processorName);
+        return eventProcessingConfiguration.transactionManager(processorName)
+                                           .fetchInTransaction(tokenStore::retrieveStorageIdentifier);
     }
 
     private void registerInstructionHandlers(AxonServerConnection connection,

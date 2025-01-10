@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2023. Axon Framework
+ * Copyright (c) 2010-2024. Axon Framework
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -526,8 +526,7 @@ public class AxonServerEventStore extends AbstractEventStore {
                                          logger.debug("Snapshot created for aggregate type {}, identifier {}",
                                                       snapshot.getType(), snapshot.getAggregateIdentifier());
                                      } else {
-                                         logger.warn("Snapshot creation failed for unknown reason. "
-                                                             + "Check server logs for details.");
+                                         logger.warn("Snapshot creation failed for unknown reason. Check server logs for details.");
                                      }
                                  }
                              });
@@ -552,8 +551,11 @@ public class AxonServerEventStore extends AbstractEventStore {
         }
 
         public TrackingEventStream openStream(TrackingToken trackingToken) {
-            Assert.isTrue(trackingToken == null || trackingToken instanceof GlobalSequenceTrackingToken,
-                          () -> "Invalid tracking token type. Must be GlobalSequenceTrackingToken.");
+            Assert.isTrue(
+                    trackingToken == null || trackingToken instanceof GlobalSequenceTrackingToken,
+                    () -> String.format("Token [%s] is of the wrong type. Expected [%s]",
+                                        trackingToken, GlobalSequenceTrackingToken.class.getSimpleName())
+            );
             long nextToken = trackingToken == null
                     ? -1
                     : ((GlobalSequenceTrackingToken) trackingToken).getGlobalIndex();
@@ -567,7 +569,7 @@ public class AxonServerEventStore extends AbstractEventStore {
                                                           configuration.isForceReadFromLeader()
                                                   );
 
-            return new EventBuffer(stream, upcasterChain, eventSerializer, configuration.isEventBlockListingEnabled());
+            return new EventBuffer(stream, upcasterChain, eventSerializer, !configuration.isEventBlockListingEnabled());
         }
 
         public QueryResultStream query(String query, boolean liveUpdates) {
@@ -661,15 +663,9 @@ public class AxonServerEventStore extends AbstractEventStore {
 
         @Override
         protected Stream<? extends DomainEventData<?>> readSnapshotData(String aggregateIdentifier) {
-            if (!snapshotFilterSet) {
-                // Snapshots are automatically fetched server-side, which is faster
-                return Stream.empty();
-            }
-
-            return StreamSupport.stream(new Spliterators.AbstractSpliterator<DomainEventData<?>>(Long.MAX_VALUE,
-                                                                                                 NONNULL | ORDERED
-                                                                                                         | DISTINCT
-                                                                                                         | CONCURRENT) {
+            return StreamSupport.stream(new Spliterators.AbstractSpliterator<DomainEventData<?>>(
+                    Long.MAX_VALUE, NONNULL | ORDERED | DISTINCT | CONCURRENT
+            ) {
                 private long sequenceNumber = Long.MAX_VALUE;
                 private final List<DomainEventData<byte[]>> prefetched = new ArrayList<>();
 
